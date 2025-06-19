@@ -1,4 +1,3 @@
-from google.genai import types
 from genai_client import client
 
 # 1 - Simple prompt
