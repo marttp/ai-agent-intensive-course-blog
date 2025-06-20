@@ -1,4 +1,5 @@
 import sqlite3
+import uuid
 
 db_file = "sample.db"
 db_conn = sqlite3.connect(db_file)
@@ -34,3 +35,7 @@ def execute_query(sql: str) -> list[list[str]]:
 
     cursor.execute(sql)
     return cursor.fetchall()
+
+def generate_session_id() -> str:
+    """Generate a unique session ID."""
+    return str(uuid.uuid4())
