@@ -10,6 +10,7 @@ model_name = "gemini-2.0-flash-exp"
 
 # Tools
 
+
 def append_to_state(
     tool_context: ToolContext, field: str, response: str
 ) -> dict[str, str]:
