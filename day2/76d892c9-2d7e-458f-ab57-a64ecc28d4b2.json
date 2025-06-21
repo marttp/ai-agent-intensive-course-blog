@@ -1,0 +1,34 @@
+{
+    "document_id": "76d892c9-2d7e-458f-ab57-a64ecc28d4b2",
+    "created_at": "timestamp_placeholder",
+    "user_profile": {
+        "salary_per_month": "90000 THB",
+        "age": 30,
+        "current_savings": "5000 THB",
+        "risk_tolerance": "Moderate"
+    },
+    "financial_goals": [
+        {
+            "goal_description": "Fund a Master's degree in the UK",
+            "target_amount": "2500000 THB",
+            "timeline": "7 years (84 months)"
+        }
+    ],
+    "financial_plan": {
+        "amount_to_save": "2495000 THB",
+        "required_monthly_savings": "29702 THB"
+    },
+    "assumptions_made": [
+        "Age: 30 years old",
+        "Current Savings: 5,000 THB",
+        "Timeline: 7 years (84 months) - Saving 2.5M THB on a 90K salary is ambitious. A 7-year timeline makes the monthly savings target more manageable compared to a shorter period.",
+        "Risk Tolerance: Moderate"
+    ],
+    "recommendations": [
+        "Strict Budgeting and Expense Reduction: Implement a very strict budget, track expenses, and reduce non-essential spending. Aim to live on roughly 60,000 THB per month or less.",
+        "Increase Income: Explore opportunities like freelance work, part-time job, selling items, or a side hustle. Consider seeking a higher-paying role.",
+        "Automate Your Savings: Set up an automatic transfer of 29,702 THB (or as much as possible) to a dedicated savings/investment account on payday.",
+        "Investment Strategy (Moderate Risk): Diversify savings using low-cost index funds/ETFs, bonds, and fixed deposits/high-yield savings accounts. Note: Investments carry risk.",
+        "Regular Review and Adjustment: Review progress quarterly, check savings target and investment performance, and adjust budget/savings/timeline as needed."
+    ]
+}
