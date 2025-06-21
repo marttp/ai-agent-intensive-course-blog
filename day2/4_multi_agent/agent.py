@@ -1,12 +1,13 @@
 import logging
-
-from google.adk import Agent
-from google.adk.agents import SequentialAgent, LoopAgent, ParallelAgent
+import uuid
+from google.adk.agents import Agent, SequentialAgent, LoopAgent, ParallelAgent
 from google.adk.tools.tool_context import ToolContext
 from google.genai import types
-from google.adk.tools import exit_loop, google_search
+from google.adk.tools import exit_loop
+from google.adk.tools.crewai_tool import CrewaiTool
+from crewai_tools import FileWriterTool
 
-model_name = "gemini-2.0-flash-exp"
+model_name = "gemini-2.5-flash-preview-04-17"
 
 # Tools
 
@@ -29,210 +30,94 @@ def append_to_state(
     return {"status": "success"}
 
 
-# Financial Planning Agents
+def generate_uuid() -> str:
+    """Generate a UUID."""
+    return str(uuid.uuid4())
 
-market_researcher = Agent(
-    name="market_researcher",
+
+# Agents
+
+financial_planner = Agent(
+    name="financial_planner",
     model=model_name,
-    description="Researches current market conditions and investment options",
+    description="Creates detailed financial savings plans based on user goals",
     instruction="""
-    FINANCIAL_GOALS:
-    {{ FINANCIAL_GOALS? }}
-
-    INSTRUCTIONS:
-    Use Google search to research current market conditions, interest rates, and investment options relevant to achieving the financial goals described in FINANCIAL_GOALS.
-    Focus on:
-    - Current savings account interest rates
-    - Investment options (stocks, bonds, mutual funds, ETFs)
-    - Inflation rates and economic outlook
-    - Risk assessment for different investment vehicles
-    
-    Use the 'append_to_state' tool to add your research to the field 'MARKET_RESEARCH'.
+    You are a financial planning expert. Based on the user's goals and profile:
+    1. Create a comprehensive savings plan with specific recommendations
+    2. Include timeline, monthly savings targets, and strategies
+    3. Use the 'append_to_state' tool to store your plan in 'FINANCIAL_PLAN'
+    4. Be specific and actionable in your recommendations
     """,
-    tools=[google_search, append_to_state],
-)
-
-budget_analyzer = Agent(
-    name="budget_analyzer",
-    model=model_name,
-    description="Analyzes current financial situation and spending patterns",
-    instruction="""
-    FINANCIAL_GOALS:
-    {{ FINANCIAL_GOALS? }}
-
-    USER_PROFILE:
-    {{ USER_PROFILE? }}
-
-    INSTRUCTIONS:
-    Analyze the user's current financial situation based on USER_PROFILE and provide insights on:
-    - Monthly income vs expenses breakdown
-    - Areas where spending can be optimized
-    - Current savings rate and potential improvements
-    - Debt analysis and payoff strategies if applicable
-    
-    Use the 'append_to_state' tool to add your analysis to the field 'BUDGET_ANALYSIS'.
-    """,
+    generate_content_config=types.GenerateContentConfig(
+        temperature=0.3,
+    ),
     tools=[append_to_state],
-)
-
-risk_assessment_team = ParallelAgent(
-    name="risk_assessment_team", sub_agents=[market_researcher, budget_analyzer]
 )
 
 plan_validator = Agent(
     name="plan_validator",
     model=model_name,
-    description="Reviews and validates the financial plan for feasibility",
+    description="Reviews and validates financial plans, providing feedback or approval",
     instruction="""
-    INSTRUCTIONS:
-    Review the SAVINGS_PLAN and assess:
-    - Is the timeline realistic given the current financial situation?
-    - Are the savings targets achievable?
-    - Does the plan account for emergency funds?
-    - Are the investment recommendations appropriate for the risk tolerance?
-    - Does the plan consider inflation and life changes?
-
-    If the SAVINGS_PLAN is comprehensive and realistic, exit the planning loop with your 'exit_loop' tool.
-
-    If significant improvements can be made, use the 'append_to_state' tool to add your feedback to the field 'PLAN_FEEDBACK'.
-    Explain your decision and briefly summarize the feedback you have provided.
-
-    SAVINGS_PLAN:
-    {{ SAVINGS_PLAN? }}
-
-    MARKET_RESEARCH:
-    {{ MARKET_RESEARCH? }}
-
-    BUDGET_ANALYSIS:
-    {{ BUDGET_ANALYSIS? }}
+    You are a financial plan validator. Review the financial plan and:
+    1. Check if the plan is realistic and achievable
+    2. Verify that it addresses the user's goals
+    3. If the plan needs improvement, provide specific feedback using 'append_to_state' to store in 'VALIDATION_FEEDBACK'
+    4. If the plan is good, simply respond with "APPROVED" and use 'append_to_state' to store "APPROVED" in 'VALIDATION_STATUS'
+    5. Always end your response with either "NEEDS_REVISION" or "APPROVED"
     """,
+    generate_content_config=types.GenerateContentConfig(
+        temperature=0,
+    ),
     tools=[append_to_state, exit_loop],
-)
-
-financial_planner = Agent(
-    name="financial_planner",
-    model=model_name,
-    description="Creates detailed savings plans based on financial goals and research",
-    instruction="""
-    INSTRUCTIONS:
-    Your goal is to create a comprehensive savings plan based on the FINANCIAL_GOALS: {{ FINANCIAL_GOALS? }}
-    
-    - If there is PLAN_FEEDBACK, use those insights to improve the plan
-    - If there is MARKET_RESEARCH, incorporate current market conditions into your recommendations
-    - If there is BUDGET_ANALYSIS, use the spending insights to create realistic savings targets
-    - If there is a SAVINGS_PLAN, improve and refine it based on new information
-    - Use the 'append_to_state' tool to write your savings plan to the field 'SAVINGS_PLAN'
-    - Include specific monthly savings amounts, investment allocations, and timeline milestones
-    - Summarize what you focused on in this planning iteration
-
-    SAVINGS_PLAN:
-    {{ SAVINGS_PLAN? }}
-
-    MARKET_RESEARCH:
-    {{ MARKET_RESEARCH? }}
-
-    BUDGET_ANALYSIS:
-    {{ BUDGET_ANALYSIS? }}
-
-    PLAN_FEEDBACK:
-    {{ PLAN_FEEDBACK? }}
-    """,
-    generate_content_config=types.GenerateContentConfig(
-        temperature=0,
-    ),
-    tools=[append_to_state],
-)
-
-financial_researcher = Agent(
-    name="financial_researcher",
-    model=model_name,
-    description="Research financial strategies and market data using Google search",
-    instruction="""
-    FINANCIAL_GOALS:
-    {{ FINANCIAL_GOALS? }}
-    
-    SAVINGS_PLAN:
-    {{ SAVINGS_PLAN? }}
-
-    PLAN_FEEDBACK:
-    {{ PLAN_FEEDBACK? }}
-
-    INSTRUCTIONS:
-    - If there is PLAN_FEEDBACK, research specific strategies to address those concerns
-    - If there is a SAVINGS_PLAN, research additional strategies to optimize it
-    - If these are empty, research general financial planning strategies for the goals in FINANCIAL_GOALS
-    - Use your Google search tool to gather current information about:
-        - Investment strategies and current market trends
-        - Savings strategies and interest rates
-        - Financial planning best practices
-        - Economic factors affecting long-term savings
-    - Use the 'append_to_state' tool to add your research to the field 'FINANCIAL_RESEARCH'
-    - Summarize the key insights you've discovered
-    """,
-    generate_content_config=types.GenerateContentConfig(
-        temperature=0,
-    ),
-    tools=[google_search, append_to_state],
-)
-
-plan_summarizer = Agent(
-    name="plan_summarizer",
-    model=model_name,
-    description="Summarizes all financial planning data into an easy-to-understand format for the user",
-    instruction="""
-    FINANCIAL_GOALS:
-    {{ FINANCIAL_GOALS? }}
-
-    USER_PROFILE:
-    {{ USER_PROFILE? }}
-
-    SAVINGS_PLAN:
-    {{ SAVINGS_PLAN? }}
-
-    MARKET_RESEARCH:
-    {{ MARKET_RESEARCH? }}
-
-    BUDGET_ANALYSIS:
-    {{ BUDGET_ANALYSIS? }}
-
-    FINANCIAL_RESEARCH:
-    {{ FINANCIAL_RESEARCH? }}
-
-    INSTRUCTIONS:
-    Create a comprehensive, easy-to-understand summary of the financial plan that includes:
-    
-    1. **Executive Summary**: Brief overview of the user's goals and recommended approach
-    2. **Your Financial Snapshot**: Current situation based on USER_PROFILE and BUDGET_ANALYSIS
-    3. **The Plan**: Clear, actionable steps from SAVINGS_PLAN broken down by timeframe
-    4. **Investment Strategy**: Simplified explanation of recommended investments from MARKET_RESEARCH
-    5. **Key Insights**: Most important findings from FINANCIAL_RESEARCH
-    6. **Next Steps**: Immediate actions the user should take
-    7. **Milestones**: Key checkpoints and timeline
-    
-    Use simple language, avoid jargon, and make it actionable. Present numbers in an easy-to-scan format.
-    Use the 'append_to_state' tool to save the summary to the field 'FINAL_SUMMARY'.
-    """,
-    generate_content_config=types.GenerateContentConfig(
-        temperature=0,
-    ),
-    tools=[append_to_state],
 )
 
 planning_workshop = LoopAgent(
     name="planning_workshop",
     description="Iterates through research and planning to create an optimal savings plan",
-    sub_agents=[financial_researcher, financial_planner, plan_validator],
+    sub_agents=[financial_planner, plan_validator],
     max_iterations=3,
+)
+
+write_user_data = Agent(
+    name="write_user_data",
+    model=model_name,
+    description="Writes user data to a JSON file.",
+    instruction="""
+    - Use your 'append_to_state' tool to store the user's goals in 'FINANCIAL_GOALS' 
+      and their personal info in 'USER_PROFILE'
+    - File name is generated by 'generate_uuid' tool
+    """,
+    generate_content_config=types.GenerateContentConfig(
+        temperature=0,
+    ),
+    tools=[
+        CrewaiTool(
+            name="file_writer_tool",
+            description=("Writes a file to disk"),
+            tool=FileWriterTool(),
+        ),
+        generate_uuid,
+    ],
+)
+
+plan_summarizer = Agent(
+    name="plan_summarizer",
+    model=model_name,
+    description="Summarizes the financial plan.",
+    instruction="""
+    You will be the final step of advisory team who response to user's goal.
+    """,
 )
 
 financial_advisory_team = SequentialAgent(
     name="financial_advisory_team",
     description="Create a comprehensive financial savings plan and save it as a document",
-    sub_agents=[planning_workshop, risk_assessment_team, plan_summarizer],
+    sub_agents=[planning_workshop, write_user_data, plan_summarizer],
 )
 
 root_agent = Agent(
-    name="financial_advisor",
+    name="greeter",
     model=model_name,
     description="Guides users in creating personalized financial savings plans",
     instruction="""
@@ -240,14 +125,12 @@ root_agent = Agent(
     - Ask them to describe:
         1. Their primary financial goal (e.g., house down payment, retirement, emergency fund, vacation)
         2. Target amount needed
-        3. Desired timeline
-        4. Current monthly income and major expenses
-        5. Risk tolerance (conservative, moderate, aggressive)
     - When they respond, use the 'append_to_state' tool to store their goals in 'FINANCIAL_GOALS' 
-      and their personal info in 'USER_PROFILE', then transfer to the 'financial_advisory_team' agent
+      and their personal info in 'USER_PROFILE'
+    - Once you have collected this information, the financial advisory team will take over to create their plan
     """,
     generate_content_config=types.GenerateContentConfig(
-        temperature=0,
+        temperature=0.5, # Greeter is friendly person. That's why need very variant response here
     ),
     tools=[append_to_state],
     sub_agents=[financial_advisory_team],
