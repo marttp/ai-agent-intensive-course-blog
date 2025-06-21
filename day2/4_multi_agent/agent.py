@@ -47,6 +47,14 @@ financial_planner = Agent(
     2. Include timeline, monthly savings targets, and strategies
     3. Use the 'append_to_state' tool to store your plan in 'FINANCIAL_PLAN'
     4. Be specific and actionable in your recommendations
+    
+    When data is missing, make realistic assumptions based on common scenarios:
+    - If age is missing, assume 30 years old
+    - If income is missing, assume median income for their location ($60,000 annually)
+    - If current savings is missing, assume $5,000
+    - If timeline is missing, assume 3-5 years for most goals
+    - If risk tolerance is missing, assume moderate risk tolerance
+    - Always state your assumptions clearly in the plan
     """,
     generate_content_config=types.GenerateContentConfig(
         temperature=0.3,
@@ -65,6 +73,12 @@ plan_validator = Agent(
     3. If the plan needs improvement, provide specific feedback using 'append_to_state' to store in 'VALIDATION_FEEDBACK'
     4. If the plan is good, simply respond with "APPROVED" and use 'append_to_state' to store "APPROVED" in 'VALIDATION_STATUS'
     5. Always end your response with either "NEEDS_REVISION" or "APPROVED"
+    
+    When validating plans with missing or assumed data:
+    - Validate that the assumptions made are reasonable and clearly stated
+    - Check if the plan would work for typical scenarios with the assumed values
+    - If critical information is missing that would significantly impact the plan, request clarification
+    - Accept reasonable assumptions for common missing data (age, income, timeline, etc.)
     """,
     generate_content_config=types.GenerateContentConfig(
         temperature=0,
@@ -112,7 +126,7 @@ plan_summarizer = Agent(
 
 financial_advisory_team = SequentialAgent(
     name="financial_advisory_team",
-    description="Create a comprehensive financial savings plan and save it as a document",
+    description="Create a comprehensive financial savings plan and save it as a. Write user data is mandatory for the step",
     sub_agents=[planning_workshop, write_user_data, plan_summarizer],
 )
 
@@ -125,9 +139,12 @@ root_agent = Agent(
     - Ask them to describe:
         1. Their primary financial goal (e.g., house down payment, retirement, emergency fund, vacation)
         2. Target amount needed
+        3. Optional: age, income, current savings, timeline, risk tolerance
     - When they respond, use the 'append_to_state' tool to store their goals in 'FINANCIAL_GOALS' 
       and their personal info in 'USER_PROFILE'
+    - If they provide incomplete information, reassure them that realistic assumptions will be made for missing details
     - Once you have collected this information, the financial advisory team will take over to create their plan
+    - Don't pressure users to provide every detail - work with what they give you
     """,
     generate_content_config=types.GenerateContentConfig(
         temperature=0.5, # Greeter is friendly person. That's why need very variant response here
